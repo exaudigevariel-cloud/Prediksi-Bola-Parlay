@@ -7,35 +7,38 @@ export default function ParlayPage() {
   const [matches, setMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Max selections can be scaled from 3 to 10 as requested
+  // The user selects which parlay table to view (3 to 10 teams)
+  const [activeParlaySize, setActiveParlaySize] = useState<number>(3);
   const [selectedMatchIds, setSelectedMatchIds] = useState<string[]>([]);
   
   useEffect(() => {
     fetchRealMatches().then(data => {
-      // Filter out matches with less than 60% top prediction confidence to ensure we only offer "Akurat" parlays
-      const highConfidenceMatches = data.filter(match => {
-        const topPred = match.predictions.find((p: any) => p.type === '1X2');
-        return topPred && topPred.probability > 60;
-      });
-      setMatches(highConfidenceMatches);
+      // Tampilkan SEMUA match, jangan dibatasi filter 60% agar selalu ada isinya
+      setMatches(data);
       setLoading(false);
     });
   }, []);
+
+  // Reset selections when tab changes
+  useEffect(() => {
+    setSelectedMatchIds([]);
+  }, [activeParlaySize]);
 
   const toggleSelection = (matchId: string) => {
     setSelectedMatchIds(prev => {
       if (prev.includes(matchId)) {
         return prev.filter(id => id !== matchId);
       }
-      if (prev.length >= 10) {
-        return prev; // Max 10 teams
+      if (prev.length >= activeParlaySize) {
+        return prev; // Lock selection at the table size
       }
       return [...prev, matchId];
     });
   };
 
-  const getAccuracyTier = (count: number) => {
-    if (count < 3) return { text: "Pilih Minimal 3", color: "text-gray-500", prob: 0 };
+  const getAccuracyTier = () => {
+    const count = selectedMatchIds.length;
+    if (count < activeParlaySize) return { text: `Pilih ${activeParlaySize} Tim`, color: "text-gray-500", prob: 0 };
     // Simulated realistic parlay accuracy reduction based on independent probability multiplication
     // E.g. 70% * 70% * 70% = 34.3%
     
@@ -55,8 +58,8 @@ export default function ParlayPage() {
     
     let color = "text-green-500";
     let tierText = "Akurat Spesial";
-    if (count > 4) { color = "text-yellow-500"; tierText = "Risiko Menengah"; }
-    if (count > 7) { color = "text-red-500"; tierText = "Jackpot Ekstrem"; }
+    if (activeParlaySize > 4) { color = "text-yellow-500"; tierText = "Risiko Menengah"; }
+    if (activeParlaySize > 7) { color = "text-red-500"; tierText = "Jackpot Ekstrem"; }
 
     return { text: tierText, color, prob: displayProb };
   };
@@ -78,7 +81,7 @@ export default function ParlayPage() {
     return multiplier.toFixed(2);
   };
 
-  const currentTier = getAccuracyTier(selectedMatchIds.length);
+  const currentTier = getAccuracyTier();
 
   return (
     <motion.div
@@ -94,8 +97,25 @@ export default function ParlayPage() {
           <Trophy className="w-10 h-10 text-yellow-500" />
         </h1>
         <p className="text-[var(--brand-200)] max-w-2xl text-sm mt-2">
-          Fitur eksklusif untuk menyusun parlay 3 hingga 10 tim. Kombinasikan pertandingan dengan tingkat akurasi tinggi hasil penyaringan Artificial Intelligence untuk melipatgandakan kemenangan.
+          Pilih tabel parlay yang ingin Anda uji coba. Sistem akan mensimulasikan persentase kemenangan dari tim yang Anda pilih secara real-time.
         </p>
+      </div>
+
+      {/* Parlay Size Tabs */}
+      <div className="flex flex-wrap justify-center gap-2 mb-8">
+        {[3, 4, 5, 6, 7, 8, 9, 10].map(size => (
+          <button
+            key={size}
+            onClick={() => setActiveParlaySize(size)}
+            className={`px-4 py-2 rounded-xl font-bold transition-all ${
+              activeParlaySize === size 
+              ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-[0_0_15px_rgba(234,179,8,0.5)] transform scale-110' 
+              : 'bg-[var(--brand-900)] text-[var(--brand-300)] hover:bg-[var(--brand-800)]'
+            }`}
+          >
+            {size} Tim
+          </button>
+        ))}
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
@@ -103,10 +123,10 @@ export default function ParlayPage() {
         <div className="flex-1">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold flex items-center gap-2">
-              <Layers className="w-5 h-5 text-purple-400" /> Pilih Pertandingan
+              <Layers className="w-5 h-5 text-purple-400" /> Pilih Pertandingan untuk Tabel {activeParlaySize} Tim
             </h2>
             <span className="text-sm font-bold bg-[var(--brand-900)]/50 px-3 py-1 rounded-full text-[var(--brand-300)] border border-[var(--brand-500)]/20">
-              {selectedMatchIds.length} / 10 Terpilih
+              {selectedMatchIds.length} / {activeParlaySize} Terpilih
             </span>
           </div>
 
@@ -163,25 +183,30 @@ export default function ParlayPage() {
         </div>
 
         {/* Right Column: Ticket / Summary */}
-        <div className="w-full lg:w-96 shrink-0">
+        <div className="w-full lg:w-96 shrink-0 lg:order-last order-first mb-8 lg:mb-0">
           <div className="sticky top-24 bg-gradient-to-b from-[#0f172a] to-[#020617] border border-blue-500/30 rounded-3xl p-6 shadow-[0_0_40px_rgba(59,130,246,0.15)] relative overflow-hidden">
             
-            {/* Background Decor */}
             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl"></div>
             
             <h3 className="text-xl font-black text-white mb-6 border-b border-blue-500/20 pb-4 flex items-center justify-between">
-              Tiket Parlay
+              Tabel Parlay {activeParlaySize} Tim
               <ShieldCheck className="w-6 h-6 text-blue-400" />
             </h3>
 
-            <div className="mb-8 space-y-6 relative z-10">
-              <div className="p-4 bg-black/40 rounded-xl border border-white/5">
-                <div className="text-xs font-bold text-gray-400 uppercase mb-1">Jumlah Tim</div>
-                <div className="text-3xl font-black text-white flex items-center gap-2">
-                  {selectedMatchIds.length} <span className="text-sm font-medium text-gray-500">/ 10</span>
+            {/* Empty Slots Visualization */}
+            <div className="mb-6 flex gap-2 justify-center flex-wrap">
+              {Array.from({ length: activeParlaySize }).map((_, i) => (
+                <div key={i} className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ring-2 transition-all ${
+                  i < selectedMatchIds.length 
+                  ? 'bg-blue-500 ring-blue-400 text-white shadow-[0_0_10px_rgba(59,130,246,0.6)]' 
+                  : 'bg-black/50 ring-white/10 text-gray-500'
+                }`}>
+                  {i + 1}
                 </div>
-              </div>
+              ))}
+            </div>
 
+            <div className="mb-8 space-y-4 relative z-10">
               <div className="p-4 bg-black/40 rounded-xl border border-white/5 relative overflow-hidden group">
                 <div className="absolute inset-0 bg-gradient-to-r from-green-500/10 to-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <div className="text-xs font-bold text-gray-400 uppercase mb-1 flex items-center justify-between">
@@ -189,7 +214,7 @@ export default function ParlayPage() {
                   <Percent className="w-3 h-3 text-green-400" />
                 </div>
                 <div className={`text-4xl font-black ${currentTier.color} drop-shadow-[0_0_10px_currentColor]`}>
-                  {selectedMatchIds.length < 3 ? '0.00' : currentTier.prob.toFixed(2)}%
+                  {selectedMatchIds.length < activeParlaySize ? '---' : currentTier.prob.toFixed(2) + '%'}
                 </div>
                 <div className={`text-xs mt-1 font-bold ${currentTier.color}`}>{currentTier.text}</div>
               </div>
@@ -201,19 +226,19 @@ export default function ParlayPage() {
                   <Activity className="w-3 h-3 text-yellow-400" />
                 </div>
                 <div className="text-4xl font-black text-yellow-500 drop-shadow-[0_0_10px_rgba(234,179,8,0.5)]">
-                  x{selectedMatchIds.length < 3 ? '1.00' : calculateOddsMultiplier()}
+                  x{selectedMatchIds.length < activeParlaySize ? '---' : calculateOddsMultiplier()}
                 </div>
               </div>
             </div>
 
-            {selectedMatchIds.length < 3 ? (
+            {selectedMatchIds.length < activeParlaySize ? (
               <div className="bg-red-950/40 border border-red-500/30 p-4 rounded-xl flex items-start gap-3 text-red-300 text-sm">
                 <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
-                <p>Silakan pilih minimal 3 tim untuk mengaktifkan analisis Parlay Generator.</p>
+                <p>Silakan isi {activeParlaySize - selectedMatchIds.length} slot lagi dari daftar di sebelah untuk menguji Parlay {activeParlaySize} Tim ini.</p>
               </div>
             ) : (
               <button className="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-lg shadow-[0_0_25px_rgba(59,130,246,0.5)] transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2 group">
-                Generate Analisis Detail
+                Cetak Tiket Simulasi
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
             )}
