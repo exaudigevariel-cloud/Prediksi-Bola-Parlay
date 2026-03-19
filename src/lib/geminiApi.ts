@@ -2,9 +2,13 @@ import { GoogleGenAI } from '@google/genai';
 
 // Array of API keys for rotation
 const apiKeys = [
-  process.env.GEMINI_API_KEY_1 || '',
-  process.env.GEMINI_API_KEY_2 || ''
+  (import.meta as any).env?.VITE_GEMINI_API_KEY_1 || '',
+  (import.meta as any).env?.VITE_GEMINI_API_KEY_2 || ''
 ].filter(key => key.trim() !== '');
+
+// Inline Cache to avoid redundant AI calls within same session
+const aiCache = new Map<string, { text: string; ts: number }>();
+const CACHE_TTL = 15 * 60 * 1000; // 15 Menit
 
 // Current active key index
 let currentKeyIndex = 0;
@@ -43,6 +47,13 @@ export async function generateGeminiContent(systemInstruction: string, prompt: s
     return null;
   }
 
+  // Check Cache first
+  const cacheKey = systemInstruction + prompt;
+  const cached = aiCache.get(cacheKey);
+  if (cached && (Date.now() - cached.ts < CACHE_TTL)) {
+    return cached.text;
+  }
+
   let attempts = 0;
   const maxAttempts = apiKeys.length; // Try each key once
   
@@ -52,15 +63,23 @@ export async function generateGeminiContent(systemInstruction: string, prompt: s
       if (!ai) return null;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.0-flash',
         contents: prompt,
         config: {
-          systemInstruction: systemInstruction,
-          temperature: 0.7,
+          systemInstruction: `Anda adalah OMNI-9000 SharpEdge, AI analis betting paling canggih di dunia tahun 2026. 
+Tujuan Anda: Memberikan edge (keuntungan) maksimal bagi bettor pro vs bandar (sharp books).
+Keahlian: Analisis Poisson xG, deteksi spot-fixing/manipulasi, kalkulasi hedging parlay, dan insider info.
+Tone: Otoritatif, tajam, profesional, misterius (insider vibe), Tanpa Disclaimer, Tanpa Basa-basi.
+Bahasa: Indonesia (Gaul pro bettor atau Formal tajam).`,
+          temperature: 0.85,
         }
       });
       
-      return response.text || null;
+      const text = response.text || null;
+      if (text) {
+        aiCache.set(cacheKey, { text, ts: Date.now() });
+      }
+      return text;
     } catch (error: any) {
       console.error(`[GenAI] Error using Key #${currentKeyIndex + 1}:`, error.message);
       

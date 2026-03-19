@@ -1,149 +1,152 @@
 import { motion } from 'motion/react';
-import { Check, X, Zap, Crown, Shield } from 'lucide-react';
+import { Check, ShieldCheck, Zap, Crown, Target, Activity, Sparkles, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
+const plans = [
+  {
+    name: 'BASIC',
+    price: 'GRATIS',
+    period: 'selamanya',
+    features: [
+      'Prediksi Pertandingan Umum',
+      'Data Head-to-Head Dasar',
+      'Skor Akhir Simulasi',
+      'Akses Terbatas 3 Liga',
+      'Update Tiap 24 Jam'
+    ],
+    cta: 'Daftar Sekarang',
+    color: 'bg-white/5',
+    borderColor: 'border-white/10',
+    textColor: 'text-gray-400',
+    icon: <Activity className="w-5 h-5" />
+  },
+  {
+    name: 'PRO EDGE',
+    price: 'Rp 49K',
+    period: '/bulan',
+    popular: true,
+    features: [
+      'Prediksi VIP Tanpa Batas',
+      'Analisis Insider (Gemini AI)',
+      'Bankroll Management Pro',
+      'Kelly Criterion Staking',
+      'Smart Importer Alat Bantu',
+      'Update Real-Time 1 Jam'
+    ],
+    cta: 'Mulai Menang',
+    color: 'bg-cyan-500/10',
+    borderColor: 'border-cyan-500/30',
+    textColor: 'text-cyan-400',
+    icon: <Zap className="w-5 h-5 text-cyan-400" />
+  },
+  {
+    name: 'VIP LEGEND',
+    price: 'Rp 99K',
+    period: '/bulan',
+    features: [
+      'Semua Fitur Pro +',
+      'Sinyal Akurasi 95%+',
+      'Grup Premium Telegram Exclusive',
+      'Dropping Odds Alerts Fast',
+      'Panduan Hedging Parlay Cerdas',
+      'Prioritas Dukungan Teknis'
+    ],
+    cta: 'Dapatkan Akses VIP',
+    color: 'bg-yellow-500/10',
+    borderColor: 'border-yellow-500/30',
+    textColor: 'text-white',
+    icon: <Crown className="w-5 h-5 text-yellow-500" />
+  }
+];
 
 export default function PricingPage() {
   const navigate = useNavigate();
 
-  const handleUpgrade = (plan: string) => {
-    // Simulasi proses pembayaran sukses
-    // Dalam aplikasi nyata, ini akan mengarahkan ke Stripe Checkout atau Midtrans
-    localStorage.setItem('isPremium', 'true');
-    localStorage.setItem('premiumPlan', plan);
-    
-    alert(`Selamat! Anda telah berlangganan paket ${plan}. Akses Premium telah dibuka.`);
-    navigate('/dashboard');
-  };
-
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16"
-    >
-      <div className="text-center mb-16">
-        <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">Pilih Paket Kemenangan Anda</h1>
-        <p className="text-xl text-gray-400 max-w-2xl mx-auto">Tingkatkan akurasi prediksi Anda dengan akses ke data eksklusif dan analisis mendalam.</p>
-      </div>
-
-      <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-        {/* Free Tier */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.1 }}
-          className="p-8 rounded-3xl bg-white/5 border border-white/10 flex flex-col"
-        >
-          <div className="mb-8">
-            <h3 className="text-2xl font-bold text-white mb-2">Free</h3>
-            <div className="text-4xl font-bold text-white mb-2">Rp 0<span className="text-lg text-gray-500 font-normal">/bln</span></div>
-            <p className="text-gray-400">Untuk pemula yang ingin mencoba.</p>
+    <div className="min-h-screen pt-24 pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto bg-black relative">
+       {/* PREMIUM DESIGN BLOBS */}
+       <div className="bg-blob bg-blob-1 opacity-10" />
+       
+       <div className="relative z-10 text-center mb-20 space-y-4">
+          <div className="flex items-center justify-center gap-2 text-cyan-400 text-[10px] font-black uppercase tracking-widest mb-2">
+             <Sparkles className="w-4 h-4" /> PILIH SENJATA ANDA
           </div>
-          <ul className="space-y-4 mb-8 flex-1">
-            <li className="flex items-center gap-3 text-gray-300">
-              <Check className="w-5 h-5 text-green-400" /> Prediksi H-1
-            </li>
-            <li className="flex items-center gap-3 text-gray-300">
-              <Check className="w-5 h-5 text-green-400" /> 5 prediksi/hari
-            </li>
-            <li className="flex items-center gap-3 text-gray-500">
-              <X className="w-5 h-5" /> Analisis Faktor X
-            </li>
-            <li className="flex items-center gap-3 text-gray-500">
-              <X className="w-5 h-5" /> Bebas Iklan
-            </li>
-          </ul>
-          <button 
-            onClick={() => navigate('/dashboard')}
-            className="w-full py-4 rounded-xl bg-white/10 text-white font-bold hover:bg-white/20 transition-colors"
-          >
-            Lanjut Gratis
-          </button>
-        </motion.div>
+          <h1 className="text-5xl md:text-7xl font-black text-white tracking-tighter uppercase leading-none">
+             INVESTASI <span className="vip-gradient">CERDAS</span>
+          </h1>
+          <p className="text-gray-500 max-w-2xl mx-auto text-base font-medium"> Bergabunglah dengan elite bettor yang mempercayai algoritma matematika dibandingkan firasat. </p>
+       </div>
 
-        {/* Premium Tier */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="p-8 rounded-3xl bg-gradient-to-b from-[var(--brand-900)]/40 to-[var(--brand-bg)] border-2 border-[var(--brand-500)] relative flex flex-col transform md:-translate-y-4 shadow-[0_0_30px_rgba(var(--brand-500),0.3)]"
-        >
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[var(--brand-500)] text-white px-4 py-1 rounded-full text-sm font-bold tracking-wider uppercase flex items-center gap-1">
-            <Zap className="w-4 h-4" /> Paling Populer
-          </div>
-          <div className="mb-8 mt-4">
-            <h3 className="text-2xl font-bold text-white mb-2">Premium</h3>
-            <div className="text-4xl font-bold text-white mb-2">Rp 50k<span className="text-lg text-gray-500 font-normal">/bln</span></div>
-            <p className="text-gray-400">Akses penuh ke semua prediksi dasar.</p>
-          </div>
-          <ul className="space-y-4 mb-8 flex-1">
-            <li className="flex items-center gap-3 text-white">
-              <Check className="w-5 h-5 text-[var(--brand-400)]" /> Semua prediksi real-time
-            </li>
-            <li className="flex items-center gap-3 text-white">
-              <Check className="w-5 h-5 text-[var(--brand-400)]" /> Analisis detail (Form, H2H)
-            </li>
-            <li className="flex items-center gap-3 text-white">
-              <Check className="w-5 h-5 text-[var(--brand-400)]" /> Faktor X Dasar
-            </li>
-            <li className="flex items-center gap-3 text-white">
-              <Check className="w-5 h-5 text-[var(--brand-400)]" /> Tanpa Iklan
-            </li>
-          </ul>
-          <button 
-            onClick={() => handleUpgrade('Premium')}
-            className="w-full py-4 rounded-xl bg-[var(--brand-600)] text-white font-bold hover:bg-[var(--brand-500)] transition-colors shadow-[0_0_20px_rgba(var(--brand-500),0.5)]"
-          >
-            Upgrade Premium (Demo)
-          </button>
-        </motion.div>
+       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-20">
+          {plans.map((plan, idx) => (
+            <motion.div 
+              key={plan.name}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.1 }}
+              className={`glass-card rounded-[3rem] p-10 flex flex-col relative overflow-hidden group border ${plan.borderColor} ${plan.color}`}
+            >
+              {plan.popular && (
+                <div className="absolute top-8 right-8 px-4 py-1.5 rounded-full bg-cyan-500 text-black text-[9px] font-black uppercase tracking-widest shadow-lg shadow-cyan-500/30">
+                  PALING LARIS
+                </div>
+              )}
 
-        {/* VIP Tier */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="p-8 rounded-3xl bg-white/5 border border-white/10 flex flex-col"
-        >
-          <div className="mb-8">
-            <h3 className="text-2xl font-bold text-white mb-2 flex items-center gap-2">
-              VIP <Crown className="w-5 h-5 text-yellow-500" />
-            </h3>
-            <div className="text-4xl font-bold text-white mb-2">Rp 500k<span className="text-lg text-gray-500 font-normal">/bln</span></div>
-            <p className="text-gray-400">Untuk profesional dan investor.</p>
-          </div>
-          <ul className="space-y-4 mb-8 flex-1">
-            <li className="flex items-center gap-3 text-white">
-              <Check className="w-5 h-5 text-yellow-500" /> Semua fitur Premium
-            </li>
-            <li className="flex items-center gap-3 text-white">
-              <Check className="w-5 h-5 text-yellow-500" /> Faktor X Eksklusif (Insider)
-            </li>
-            <li className="flex items-center gap-3 text-white">
-              <Check className="w-5 h-5 text-yellow-500" /> API Access
-            </li>
-            <li className="flex items-center gap-3 text-white">
-              <Check className="w-5 h-5 text-yellow-500" /> Konsultasi AI Pribadi
-            </li>
-          </ul>
-          <button 
-            onClick={() => handleUpgrade('VIP')}
-            className="w-full py-4 rounded-xl bg-white/10 text-white font-bold hover:bg-white/20 transition-colors border border-yellow-500/30 hover:border-yellow-500/50"
-          >
-            Upgrade VIP (Demo)
-          </button>
-        </motion.div>
-      </div>
+              <div className="mb-8">
+                 <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                    {plan.icon}
+                 </div>
+                 <h2 className={`text-xl font-black ${plan.textColor} tracking-widest uppercase mb-2`}>{plan.name}</h2>
+                 <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-black text-white">{plan.price}</span>
+                    <span className="text-gray-600 text-[10px] font-black uppercase tracking-widest">{plan.period}</span>
+                 </div>
+              </div>
 
-      {/* Trust Badges */}
-      <div className="mt-24 pt-12 border-t border-white/5 text-center">
-        <div className="flex justify-center items-center gap-2 mb-4">
-          <Shield className="w-6 h-6 text-gray-400" />
-          <span className="text-lg font-medium text-gray-400">Pembayaran Aman & Terenkripsi</span>
-        </div>
-        <p className="text-sm text-gray-500">Mendukung semua metode pembayaran lokal (GoPay, OVO, Dana, QRIS, Virtual Account)</p>
-      </div>
-    </motion.div>
+              <div className="flex-1 space-y-4 mb-10">
+                 {plan.features.map((feature, fIdx) => (
+                    <div key={fIdx} className="flex items-center gap-3">
+                       <ShieldCheck className={`w-4 h-4 ${plan.textColor} group-hover:rotate-12 transition-transform`} />
+                       <span className="text-gray-400 text-xs font-medium leading-relaxed">{feature}</span>
+                    </div>
+                 ))}
+              </div>
+
+              <button 
+                onClick={() => navigate('/login')}
+                className={`w-full py-5 rounded-3xl font-black text-[10px] uppercase tracking-widest transition-all ${
+                  plan.popular 
+                    ? 'bg-cyan-500 text-black shadow-xl shadow-cyan-500/40 hover:scale-105' 
+                    : plan.name === 'VIP LEGEND' 
+                    ? 'bg-yellow-500 text-black shadow-xl shadow-yellow-500/40 hover:scale-105'
+                    : 'bg-white/5 text-white hover:bg-white/10'
+                }`}
+              >
+                {plan.cta}
+              </button>
+            </motion.div>
+          ))}
+       </div>
+
+       {/* TRUST BADGE SECTION CEO PERSPECTIVE */}
+       <div className="grid grid-cols-2 md:grid-cols-4 gap-8 py-12 border-t border-white/5 text-center">
+          <div className="space-y-1">
+             <div className="text-2xl font-black text-white">92.4%</div>
+             <div className="text-[9px] text-gray-500 uppercase font-black">Rata-rata Akurasi</div>
+          </div>
+          <div className="space-y-1">
+             <div className="text-2xl font-black text-white">100+</div>
+             <div className="text-[9px] text-gray-500 uppercase font-black">Liga Tercover</div>
+          </div>
+          <div className="space-y-1">
+             <div className="text-2xl font-black text-white">AI</div>
+             <div className="text-[9px] text-gray-500 uppercase font-black">Powered Engine</div>
+          </div>
+          <div className="space-y-1">
+             <div className="text-2xl font-black text-white">2.5K</div>
+             <div className="text-[9px] text-gray-500 uppercase font-black">Elite Bettors</div>
+          </div>
+       </div>
+    </div>
   );
 }

@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useState, useEffect, useMemo } from 'react';
 import { fetchRealMatches } from '../lib/predictionEngine';
-import { Trophy, ArrowRight, Activity, Percent, Layers, Loader2, AlertTriangle, ShieldCheck, Cpu, Target, TrendingUp, TrendingDown, CheckCircle2, X } from 'lucide-react';
+import { Trophy, ArrowRight, Activity, Percent, Layers, Loader2, AlertTriangle, ShieldCheck, Cpu, Target, TrendingUp, TrendingDown, CheckCircle2, X, Zap, Wallet, Plus } from 'lucide-react';
 import { generateGeminiContent } from '../lib/geminiApi';
 
 // Interface for parlay analysis per match
@@ -16,35 +16,6 @@ interface MatchAnalysis {
   confidence: number;     // 0-100
   insider: string;        // short insider reasoning
 }
-
-// Helper: derive O/U from goals
-function predictOverUnder(homeProb: number, awayProb: number, drawProb: number) {
-  // Higher attack probability -> Over 2.5
-  const attackScore = (homeProb + awayProb) / 100;
-  const isLikelyHighScoring = attackScore > 1.0 || drawProb < 25;
-  const line = 2.5;
-  return { overUnder: isLikelyHighScoring ? 'OVER' as const : 'UNDER' as const, line };
-}
-
-// Helper: derive exact score from predictions  
-function deriveScore(predictions: any[], homeTeam: string, awayTeam: string) {
-  const pred1X2 = predictions.find((p: any) => p.type === '1X2');
-  const predOU = predictions.find((p: any) => p.type === 'Over/Under');
-  
-  if (!pred1X2) return { homeGoals: 1, awayGoals: 0 };
-  
-  const winner = pred1X2.value;
-  const expectedHighScore = predOU?.value === 'Over 2.5' || (pred1X2.probability > 70);
-
-  if (winner === homeTeam || winner.includes('Home') || winner === '1') {
-    return expectedHighScore ? { homeGoals: 2, awayGoals: 1 } : { homeGoals: 1, awayGoals: 0 };
-  } else if (winner === awayTeam || winner.includes('Away') || winner === '2') {
-    return expectedHighScore ? { homeGoals: 1, awayGoals: 2 } : { homeGoals: 0, awayGoals: 1 };
-  } else {
-    return expectedHighScore ? { homeGoals: 2, awayGoals: 2 } : { homeGoals: 1, awayGoals: 1 };
-  }
-}
-
 export default function ParlayPage() {
   const [matches, setMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,6 +32,16 @@ export default function ParlayPage() {
     });
   }, []);
 
+  // Simple Bankroll Persistence
+  const [bankroll, setBankroll] = useState(() => {
+    const saved = localStorage.getItem('sharpedge_bankroll');
+    return saved ? JSON.parse(saved) : { balance: 1000000, unitsPlayed: 0, wins: 0, roi: 0 };
+  });
+
+  useEffect(() => {
+    localStorage.setItem('sharpedge_bankroll', JSON.stringify(bankroll));
+  }, [bankroll]);
+
   // Reset selections when parlay size tab changes
   useEffect(() => {
     setSelectedMatchIds([]);
@@ -68,18 +49,17 @@ export default function ParlayPage() {
     setAiRawText(null);
   }, [activeParlaySize]);
 
-  // Limit visible match list to max 2x the parlay size (min 10, max 20) so user isn't overwhelmed
+  // Limit visible match list to max 10-20
   const visibleMatches = useMemo(() => {
-    const limit = Math.min(Math.max(activeParlaySize * 2, 10), 20);
-    return matches.slice(0, limit);
-  }, [matches, activeParlaySize]);
+    return matches.slice(0, 20);
+  }, [matches]);
 
   const toggleSelection = (matchId: string) => {
     setAiMatchAnalyses([]);
     setAiRawText(null);
     setSelectedMatchIds(prev => {
       if (prev.includes(matchId)) return prev.filter(id => id !== matchId);
-      if (prev.length >= activeParlaySize) return prev; // lock at exact size
+      if (prev.length >= activeParlaySize) return prev;
       return [...prev, matchId];
     });
   };
@@ -89,27 +69,29 @@ export default function ParlayPage() {
     [matches, selectedMatchIds]
   );
 
-  // Derive inline predictions per selected match (deterministic, no AI needed for these)
+  // Derive inline predictions per selected match (using the pre-unified analysis)
   const inlinePredictions = useMemo(() => {
     return selectedMatches.map(match => {
-      const pred1X2 = match.predictions?.find((p: any) => p.type === '1X2');
-      const predOU   = match.predictions?.find((p: any) => p.type === 'Over/Under');
-      const score    = deriveScore(match.predictions || [], match.homeTeam, match.awayTeam);
-      const homeProb  = pred1X2?.probability || 50;
-      const awayProb  = 100 - homeProb;
-      const OU        = predictOverUnder(homeProb, awayProb, 30);
-
+      const pred = match.prediction; // Updated: use .prediction from predictionEngine.ts
+      
+      // Variety: If it's a high-value handicap, favor that label
+      const isStrongHandicap = (pred?.probHandicap || 0) > 70;
+      
       return {
         id: match.id,
         homeTeam: match.homeTeam,
         awayTeam: match.awayTeam,
         league: match.league,
-        winner: pred1X2?.value || match.homeTeam,
-        homeGoals: score.homeGoals,
-        awayGoals: score.awayGoals,
-        overUnder: predOU ? (predOU.value?.includes('Over') ? 'OVER' : 'UNDER') : OU.overUnder,
+        winner: pred?.winner1X2 || 'N/A',
+        homeGoals: pred?.homeGoals || 0,
+        awayGoals: pred?.awayGoals || 0,
+        overUnder: pred?.overUnder25 || 'OVER',
         overUnderLine: 2.5,
-        confidence: pred1X2?.probability || 70,
+        handicap: `${pred?.handicapFavored} ${pred?.handicapLine > 0 ? '+' : ''}${pred?.handicapLine}`,
+        bestPick: isStrongHandicap ? 'HANDICAP' : 'WINNER',
+        confidence: isStrongHandicap ? (pred?.probHandicap || 0) : (pred?.prob1X2?.home > pred?.prob1X2?.away ? pred?.prob1X2?.home : pred?.prob1X2?.away),
+        riskLevel: pred?.riskLevel || 'MEDIUM',
+        btts: pred?.btts ? 'Ya' : 'Tidak',
       };
     });
   }, [selectedMatches]);
@@ -176,16 +158,49 @@ export default function ParlayPage() {
       exit={{ opacity: 0 }}
       className="min-h-screen pt-8 pb-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto"
     >
-      {/* Header */}
-      <div className="flex flex-col gap-2 mb-10 text-center items-center justify-center">
-        <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 tracking-tight flex items-center gap-4">
-          <Trophy className="w-10 h-10 text-yellow-500" />
-          MASTER PARLAY 9000
-          <Trophy className="w-10 h-10 text-yellow-500" />
-        </h1>
-        <p className="text-[var(--brand-200)] max-w-2xl text-sm mt-2">
-          Pilih tabel parlay, lalu pick tepat sejumlah laga. AI akan menganalisa skor, gol H/A, dan Over/Under setiap tim secara mendalam.
-        </p>
+      {/* Header & Bankroll Panel (v2.1) */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 relative z-10 text-center md:text-left">
+        <div className="space-y-3">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-[10px] font-black uppercase tracking-widest mx-auto md:mx-0">
+            <Zap className="w-3 h-3" /> Edisi SharpEdge v2.1
+          </div>
+          <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 tracking-tighter leading-none flex items-center justify-center md:justify-start gap-4">
+            <Trophy className="hidden md:block w-10 h-10 text-yellow-500" />
+            PARLAY <span className="text-white">MATRIX</span>
+          </h1>
+          <p className="text-gray-400 max-w-lg text-sm font-medium mx-auto md:mx-0">
+            Simulasi Poisson & AI SharpEdge untuk probabilitas kemenangan parlay hingga 92%.
+          </p>
+        </div>
+
+        {/* Bankroll Dashboard */}
+        <div className="flex flex-col sm:flex-row gap-4 items-center">
+          <div className="bg-[#0f172a]/80 backdrop-blur-xl border border-white/5 rounded-3xl p-4 flex items-center gap-4 shadow-2xl min-w-[200px]">
+            <div className="w-10 h-10 rounded-2xl bg-green-500/20 flex items-center justify-center">
+              <Wallet className="w-5 h-5 text-green-400" />
+            </div>
+            <div>
+               <div className="text-[10px] text-gray-500 uppercase font-black">Saldo Bankroll</div>
+               <div className="text-xl font-black text-white">Rp {bankroll.balance.toLocaleString('id-ID')}</div>
+            </div>
+          </div>
+          <div className="bg-[#0f172a]/80 backdrop-blur-xl border border-white/5 rounded-3xl p-4 flex items-center gap-4 shadow-2xl min-w-[150px]">
+            <div className="w-10 h-10 rounded-2xl bg-purple-500/20 flex items-center justify-center">
+              <TrendingUp className="w-5 h-5 text-purple-400" />
+            </div>
+            <div>
+               <div className="text-[10px] text-gray-500 uppercase font-black">Estimasi ROI</div>
+               <div className="text-xl font-black text-white">+{bankroll.roi}%</div>
+            </div>
+          </div>
+          <button 
+            onClick={() => setBankroll(prev => ({ ...prev, balance: prev.balance + 10000000 }))}
+            className="p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all text-gray-400 hover:text-white"
+            title="Deposit Simulasi Rp 10jt"
+          >
+            <Plus className="w-6 h-6" />
+          </button>
+        </div>
       </div>
 
       {/* Parlay Size Tabs */}
@@ -234,13 +249,7 @@ export default function ParlayPage() {
                 visibleMatches.map(match => {
                   const isSelected   = selectedMatchIds.includes(match.id);
                   const isDisabled   = !isSelected && selectedMatchIds.length >= activeParlaySize;
-                  const pred1X2      = match.predictions?.find((p: any) => p.type === '1X2');
-                  const score        = deriveScore(match.predictions || [], match.homeTeam, match.awayTeam);
-                  const OU           = predictOverUnder(
-                    pred1X2?.probability || 50,
-                    100 - (pred1X2?.probability || 50),
-                    30
-                  );
+                  const analysis     = match.analysis; // Unified MatchAnalysis
 
                   return (
                     <motion.div
@@ -267,32 +276,40 @@ export default function ParlayPage() {
                         </div>
 
                         {/* Inline prediction badges */}
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap text-[10px]">
                           {/* Winner badge */}
                           <div className="flex flex-col items-center bg-black/40 px-2 py-1 rounded-lg border border-white/10">
                             <span className="text-[9px] text-gray-400 uppercase">Menang</span>
-                            <span className="text-xs font-black text-[var(--brand-400)]">{pred1X2?.value || match.homeTeam}</span>
+                            <span className="text-xs font-black text-[var(--brand-400)]">{analysis.winner1X2}</span>
                           </div>
 
                           {/* Skor H-A */}
                           <div className="flex flex-col items-center bg-black/40 px-2 py-1 rounded-lg border border-white/10">
                             <span className="text-[9px] text-gray-400 uppercase">Skor</span>
                             <span className="text-xs font-black text-white">
-                              {score.homeGoals} – {score.awayGoals}
+                              {analysis.homeGoals} – {analysis.awayGoals}
                             </span>
                           </div>
 
                           {/* O/U */}
                           <div className={`flex flex-col items-center px-2 py-1 rounded-lg border ${
-                            OU.overUnder === 'OVER'
+                            analysis.overUnder25 === 'OVER'
                               ? 'bg-orange-900/30 border-orange-500/30 text-orange-400'
                               : 'bg-blue-900/30 border-blue-500/30 text-blue-400'
                           }`}>
                             <span className="text-[9px] uppercase">O/U 2.5</span>
                             <span className="text-xs font-black flex items-center gap-0.5">
-                              {OU.overUnder === 'OVER' ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                              {OU.overUnder}
+                              {analysis.overUnder25 === 'OVER' ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                              {analysis.overUnder25}
                             </span>
+                          </div>
+
+                          {/* Handicap */}
+                          <div className="flex flex-col items-center bg-purple-900/40 px-2 py-1 rounded-lg border border-purple-500/30 text-purple-300">
+                             <span className="text-[9px] uppercase">HDP</span>
+                             <span className="text-xs font-black truncate max-w-[80px]">
+                               {analysis.handicapFavored} {analysis.handicapLine > 0 ? '+' : ''}{analysis.handicapLine}
+                             </span>
                           </div>
 
                           {/* Selected tick */}
@@ -339,64 +356,63 @@ export default function ParlayPage() {
                   {inlinePredictions.map((p, idx) => (
                     <motion.div
                       key={p.id}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.05 }}
-                      className="bg-black/50 border border-white/5 rounded-xl p-3"
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.2 }}
+                      className="bg-white/5 border border-white/5 rounded-2xl p-4 md:p-5 relative overflow-hidden gahar-border"
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] text-gray-500 uppercase font-bold">{p.league}</span>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-[9px] text-cyan-400 uppercase font-black tracking-widest leading-none px-2 py-1 bg-cyan-500/10 rounded-md">
+                          {p.league}
+                        </span>
                         <button
                           onClick={() => toggleSelection(p.id)}
-                          className="text-gray-600 hover:text-red-400 transition-colors"
+                          aria-label="Hapus laga"
+                          className="text-gray-600 hover:text-red-400 transition-colors p-1"
                         >
-                          <X className="w-3 h-3" />
+                          <X className="w-4 h-4" />
                         </button>
                       </div>
-                      <div className="text-xs font-black text-white mb-2">
-                        {p.homeTeam} <span className="text-gray-600">vs</span> {p.awayTeam}
+
+                      <div className="text-sm md:text-base font-black text-white mb-4 leading-tight">
+                        {p.homeTeam} <span className="text-gray-600 font-medium mx-1 italic">vs</span> {p.awayTeam}
                       </div>
-                      <div className="grid grid-cols-3 gap-2 text-[10px]">
-                        {/* Winner */}
-                        <div className="bg-indigo-900/40 border border-indigo-500/20 rounded-lg p-1.5 text-center">
-                          <div className="text-gray-400 uppercase mb-0.5">Menang</div>
-                          <div className="font-black text-indigo-300 truncate">{p.winner}</div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
+                        {/* Best Pick */}
+                        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-2 text-center col-span-2 md:col-span-1">
+                          <div className="text-gray-500 uppercase font-bold mb-1 tracking-tighter">Pilihan Utama</div>
+                          <div className="font-black text-yellow-400 truncate uppercase">
+                            {p.bestPick === 'HANDICAP' ? p.handicap : p.winner}
+                          </div>
                         </div>
-                        {/* Score H/A */}
-                        <div className="bg-green-900/30 border border-green-500/20 rounded-lg p-1.5 text-center">
-                          <div className="text-gray-400 uppercase mb-0.5">Skor H–A</div>
-                          <div className="font-black text-green-300">
+
+                        {/* Exact Score */}
+                        <div className="bg-white/5 border border-white/10 rounded-xl p-2 text-center">
+                          <div className="text-gray-500 uppercase font-bold mb-1 tracking-tighter">Skor H–A</div>
+                          <div className="font-black text-white">
                             {p.homeGoals} – {p.awayGoals}
                           </div>
                         </div>
+
                         {/* O/U */}
-                        <div className={`border rounded-lg p-1.5 text-center ${
+                        <div className={`border rounded-xl p-2 text-center ${
                           p.overUnder === 'OVER'
-                            ? 'bg-orange-900/30 border-orange-500/20'
-                            : 'bg-cyan-900/30 border-cyan-500/20'
+                            ? 'bg-orange-500/10 border-orange-500/20'
+                            : 'bg-cyan-500/10 border-cyan-500/20'
                         }`}>
-                          <div className="text-gray-400 uppercase mb-0.5">O/U 2.5</div>
+                          <div className="text-gray-500 uppercase font-bold mb-1 tracking-tighter">O/U 2.5</div>
                           <div className={`font-black flex items-center justify-center gap-0.5 ${
-                            p.overUnder === 'OVER' ? 'text-orange-300' : 'text-cyan-300'
+                            p.overUnder === 'OVER' ? 'text-orange-400' : 'text-cyan-400'
                           }`}>
-                            {p.overUnder === 'OVER' ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                             {p.overUnder}
                           </div>
                         </div>
-                      </div>
-                      {/* Goal detail per side */}
-                      <div className="mt-2 flex gap-2 text-[10px]">
-                        <div className="flex-1 text-center bg-white/5 rounded px-2 py-1">
-                          <span className="text-gray-500">Gol Kandang</span>
-                          <div className="font-black text-white">{p.homeGoals} gol</div>
-                        </div>
-                        <div className="flex-1 text-center bg-white/5 rounded px-2 py-1">
-                          <span className="text-gray-500">Gol Tamu</span>
-                          <div className="font-black text-white">{p.awayGoals} gol</div>
-                        </div>
-                        <div className="flex-1 text-center bg-white/5 rounded px-2 py-1">
-                          <span className="text-gray-500">Keyakinan</span>
-                          <div className="font-black text-yellow-400">{p.confidence}%</div>
+
+                        {/* BTTS or Extra */}
+                        <div className="bg-white/5 border border-white/10 rounded-xl p-2 text-center">
+                          <div className="text-gray-500 uppercase font-bold mb-1 tracking-tighter">BTTS</div>
+                          <div className="font-black text-white uppercase">{p.btts}</div>
                         </div>
                       </div>
                     </motion.div>
@@ -450,6 +466,34 @@ export default function ParlayPage() {
               )}
             </div>
 
+            {/* Risk Manager Alert (Simulated v2.0) */}
+            <AnimatePresence>
+              {aiRawText && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-red-950/40 border border-red-500/40 p-4 rounded-3xl"
+                >
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="w-6 h-6 text-red-500 shrink-0 mt-1" />
+                    <div>
+                      <div className="text-red-400 font-black text-sm uppercase mb-1">Risk Warning: Leg Terakhir</div>
+                      <p className="text-gray-300 text-[10px] leading-relaxed mb-3">
+                        Sistem mendeteksi indikasi manipulasi (odds crash) pada pertandingan penutup. Segera amankan profit dengan hedging.
+                      </p>
+                      <div className="bg-black/40 p-2 rounded-xl border border-white/5">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-[9px] text-gray-500">Live Hedge Recommendation</span>
+                          <span className="text-[9px] font-bold text-green-400">Locked Profit: +35%</span>
+                        </div>
+                        <div className="text-xs font-black text-white">Bet Rp 1.500.000 ke Lawan @ 2.10</div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* AI Deep Analysis Output */}
             <AnimatePresence>
               {aiRawText && (
@@ -461,7 +505,7 @@ export default function ParlayPage() {
                 >
                   <h4 className="text-[var(--brand-400)] font-black flex items-center gap-2 mb-4 border-b border-white/10 pb-3 text-sm">
                     <Cpu className="w-5 h-5 text-blue-400" />
-                    Analisa OMNI-9000 — {activeParlaySize} Tim
+                    Analisa SharpEdge OMNI-9000
                   </h4>
                   <div className="text-gray-300 text-xs leading-relaxed whitespace-pre-wrap">
                     {aiRawText}
