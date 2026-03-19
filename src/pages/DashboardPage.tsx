@@ -180,12 +180,12 @@ export default function DashboardPage() {
                       <div className="grid grid-cols-2 gap-3 pt-4 border-t border-white/5">
                          <div className="bg-white/5 p-3 rounded-2xl border border-white/5 flex justify-between items-center group-hover:bg-white/10 transition-all">
                             <span className="text-[9px] font-black text-gray-500 uppercase">Score AI</span>
-                            <span className="text-sm font-black text-white">{match.prediction.exactScore}</span>
+                            <span className="text-sm font-black text-white">{match.prediction?.exactScore || 'N/A'}</span>
                          </div>
                          <div className="bg-white/5 p-3 rounded-2xl border border-white/5 flex justify-between items-center group-hover:bg-white/10 transition-all">
                             <span className="text-[9px] font-black text-orange-500 uppercase">O/U 2.5</span>
-                            <span className={`text-sm font-black ${match.prediction.overUnder25 === 'OVER' ? 'text-orange-400' : 'text-cyan-400'}`}>
-                               {match.prediction.overUnder25}
+                            <span className={`text-sm font-black ${match.prediction?.overUnder25 === 'OVER' ? 'text-orange-400' : 'text-cyan-400'}`}>
+                               {match.prediction?.overUnder25 || 'N/A'}
                             </span>
                          </div>
                       </div>
@@ -193,9 +193,9 @@ export default function DashboardPage() {
                       <div className="mt-3 bg-cyan-500/5 p-3 rounded-2xl border border-cyan-500/10 flex justify-between items-center">
                          <span className="text-[9px] font-black text-cyan-600 uppercase">Pilihan 1X2</span>
                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-black text-white uppercase">{match.prediction.winner1X2}</span>
+                            <span className="text-xs font-black text-white uppercase">{match.prediction?.winner1X2 || 'N/A'}</span>
                             <div className="w-1 h-1 rounded-full bg-cyan-500" />
-                            <span className="text-xs font-black text-cyan-400">{match.prediction.prob1X2.home}%</span>
+                            <span className="text-xs font-black text-cyan-400">{match.prediction?.prob1X2?.home || 0}%</span>
                          </div>
                       </div>
                     </motion.div>
